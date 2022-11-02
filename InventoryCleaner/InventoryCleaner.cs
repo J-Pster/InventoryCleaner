@@ -21,7 +21,7 @@ using Network;
 
 namespace Oxide.Plugins
 {
-    [Info("Inventory Cleaner", "Joao Pster", "2.0.0")]
+    [Info("Inventory Cleaner", "Joao Pster", "2.1.0")]
     [Description("Allows players to clear their own or another player's inventory.")]
     public class InventoryCleaner : RustPlugin
     {
