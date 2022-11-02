@@ -45,14 +45,11 @@ namespace Oxide.Plugins
 
         private class Configuration
         {
-            [JsonProperty(PropertyName = "Message Image")]
+            [JsonProperty(PropertyName = "[Message Image]")]
             public ulong MessageImage { get; set; } = 0;
 
-            [JsonProperty(PropertyName = "Message Prefix")]
+            [JsonProperty(PropertyName = "[Message Prefix]")]
             public string MessagePrefix { get; set; } = "[Clear Inventory]";
-
-            [JsonProperty(PropertyName = "Send to Chat")]
-            public bool SendToChat { get; set; } = true;
         }
 
         private Configuration DefaultConfig() => new Configuration();
@@ -220,7 +217,7 @@ namespace Oxide.Plugins
         
         #region Panel Functions
         
-        private void CommandsPanel(BasePlayer player, params string[] args)
+        private void CommandsPanel(BasePlayer player, Action<BasePlayer, string> messager, params string[] args)
         {
             var sb = new StringBuilder();
             sb.Append(GetMessage(MessageKey.Header, player.UserIDString, Author, Version));
@@ -232,10 +229,10 @@ namespace Oxide.Plugins
             sb.Append(GetMessage(MessageKey.OptWear, player.UserIDString));
             sb.Append(GetMessage(MessageKey.OptEvery, player.UserIDString));
 
-            SendChatMessage(player, sb.ToString());
+            messager(player, sb.ToString());
         }
 
-        private void HelpPanel(BasePlayer player)
+        private void HelpPanel(BasePlayer player, Action<BasePlayer, string> messager)
         {
             var mCp = hasAllPermissions(player);
 
@@ -249,7 +246,7 @@ namespace Oxide.Plugins
             sb.Append(GetMessage(MessageKey.PermLogout, player.UserIDString, mCp[3]));
             sb.Append(GetMessage(MessageKey.InvComands, player.UserIDString));
 
-            SendChatMessage(player, sb.ToString());
+            messager(player, sb.ToString());
         }
         
         #endregion
@@ -258,7 +255,7 @@ namespace Oxide.Plugins
         
         private void DeleteFromEveryone(BasePlayer player, string opt)
         {
-            PrintWarning($"{player.displayName} is Running Delete Everyone!");
+            PrintWarning($"{player.displayName} is trying to run Delete Everyone!");
             if (!HasPermission(player, MyPermissions.ClearOthers)) return;
             PrintWarning($"{player.displayName}: Running Delete Everyone Started!");
 
@@ -269,11 +266,11 @@ namespace Oxide.Plugins
                 var inv = p.inventory;
                 switch (opt)
                 {
-                    case "all":
+                    case "main":
                         inv.Strip();
                         SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryAllCleaned, player.UserIDString), "red", 18));
                         break;
-                    case "main":
+                    case "inv":
                         inv.containerMain.Clear();
                         SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryInvCleaned, player.UserIDString), "red", 18));
                         break;
@@ -295,10 +292,10 @@ namespace Oxide.Plugins
             PrintWarning($"{player.displayName}: Running Delete Everyone Finished!");
         }
 
-        private void ClearOneContainer(BasePlayer player, ItemContainer container, string msgKey, string? option = null, string? every = null)
+        private void ClearOneContainer(BasePlayer player, ItemContainer container, string msgKey, Action<BasePlayer, string> messager, string option = "main", bool every = false)
         {
             // Everyone
-            if (every != null && option != null)
+            if (every)
             {
                 DeleteFromEveryone(player, option);
                 return;
@@ -309,13 +306,13 @@ namespace Oxide.Plugins
             ItemManager.DoRemoves();
             
             var msg = GenerateMessage(GetMessage(msgKey, player.UserIDString, player.displayName), "green", 14);
-            SendChatMessage(player, msg);
+            messager(player, msg);
         }
 
-        private void ClearAllContainers(BasePlayer player, string msgKey, string? option = null, string? every = null)
+        private void ClearAllContainers(BasePlayer player, string msgKey, Action<BasePlayer, string> messager, string option = "main", bool every = false)
         {
             // Everyone
-            if (every != null && option != null)
+            if (every)
             {
                 DeleteFromEveryone(player, option);
                 return;
@@ -326,7 +323,7 @@ namespace Oxide.Plugins
             ItemManager.DoRemoves();
 
             var msg = GenerateMessage(GetMessage(msgKey, player.UserIDString, player.displayName), "green", 14);
-            SendChatMessage(player, msg);
+            messager(player, msg);
         }
 
         #endregion
@@ -337,47 +334,99 @@ namespace Oxide.Plugins
         private void ClearCommand(BasePlayer player, string command, string[] args)
         {
             // Check Permission
-            bool has = HasPermission(player, MyPermissions.Clear);
+            var has = HasPermission(player, MyPermissions.Clear);
             if (!has) return;
             
             // Default Case
             if (args.Length == 0)
             {
-                ClearAllContainers(player, MessageKey.AllCleaned);
+                ClearAllContainers(player, MessageKey.AllCleaned, SendChatMessage);
                 return;
             }
             
-            // Get the option
-            string? every = null;
-            if ((args.Length > 1) && (args[1].ToLower() == "everyone")) every = args[1];
-            
+            // Check if every is true and get the option
+            var every = ((args.Length > 1) && (args[1].ToLower() == "everyone"));
+
             var opt = args[0].ToLower();
             
             switch (opt)
             {
                 case "main":
-                    ClearAllContainers(player, MessageKey.AllCleaned, opt, every);
+                    ClearAllContainers(player, MessageKey.AllCleaned, SendChatMessage, opt, every);
                     break;
                 case "inv":
-                    ClearOneContainer(player, player.inventory.containerMain, MessageKey.InvCleaned, opt, every);
+                    ClearOneContainer(player, player.inventory.containerMain, MessageKey.InvCleaned, SendChatMessage, opt, every);
                     break;
                 case "belt":
-                    ClearOneContainer(player, player.inventory.containerBelt, MessageKey.InvCleaned, opt, every);
+                    ClearOneContainer(player, player.inventory.containerBelt, MessageKey.InvCleaned, SendChatMessage, opt, every);
                     break;
                 case "wear":
-                    ClearOneContainer(player, player.inventory.containerWear, MessageKey.InvCleaned, opt, every);
+                    ClearOneContainer(player, player.inventory.containerWear, MessageKey.InvCleaned, SendChatMessage, opt, every);
                     break;
                 case "help":
-                    HelpPanel(player);
+                    HelpPanel(player, SendChatMessage);
                     break;
                 case "cmds":
-                    CommandsPanel(player);
+                    CommandsPanel(player, SendChatMessage);
                     break;
                 default:
                     SendChatMessage(player, GenerateMessage(GetMessage(MessageKey.OptNotFound, player.UserIDString, opt)));
                     break;
             }
         }
+
+        #endregion
+
+        #region Console Commands
+
+        [ConsoleCommand("inv.clear")]
+        private void CmdConsole(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+
+            // Check Permission
+            var has = HasPermission(player, MyPermissions.Clear);
+            if (!has) return;
+            
+            // Default Case
+            if (arg.Args == null)
+            {
+                ClearAllContainers(player, MessageKey.AllCleaned, SendConsoleMessage);
+                return;
+            }
+            
+            var args = arg.Args;
+
+            // Check if every is true and get the option
+            var every = ((args.Length > 1) && (args[1].ToLower() == "everyone"));
+            
+            var opt = args[0].ToLower();
+            
+            switch (opt)
+            {
+                case "main":
+                    ClearAllContainers(player, MessageKey.AllCleaned, SendConsoleMessage, opt, every);
+                    break;
+                case "inv":
+                    ClearOneContainer(player, player.inventory.containerMain, MessageKey.InvCleaned, SendConsoleMessage, opt, every);
+                    break;
+                case "belt":
+                    ClearOneContainer(player, player.inventory.containerBelt, MessageKey.InvCleaned, SendConsoleMessage, opt, every);
+                    break;
+                case "wear":
+                    ClearOneContainer(player, player.inventory.containerWear, MessageKey.InvCleaned, SendConsoleMessage, opt, every);
+                    break;
+                case "help":
+                    HelpPanel(player, SendConsoleMessage);
+                    break;
+                case "cmds":
+                    CommandsPanel(player, SendConsoleMessage);
+                    break;
+                default:
+                    SendChatMessage(player, GenerateMessage(GetMessage(MessageKey.OptNotFound, player.UserIDString, opt)));
+                    break;
+            }
+        }    
 
         #endregion
 
@@ -435,7 +484,7 @@ namespace Oxide.Plugins
                 [MessageKey.Gone] = "<color=#ff0000>Warning:</color> Once items removed they are GONE ! \n\n",
                 [MessageKey.Opts] = "Hi, the base commands is <color=green>/clearinv [opts]</color>, see the opts:\n\n",
                 [MessageKey.Perms] = "Hi <color=green>{0}</color>, this is your permissions: \n",
-                [MessageKey.OptAll] = "<color=yellow>all</color>: remove all your items \n",
+                [MessageKey.OptAll] = "<color=yellow>main</color>: remove all your items \n",
                 [MessageKey.OptInv] = "<color=yellow>inv</color>: remove all items from your inventory \n",
                 [MessageKey.OptBelt] = "<color=yellow>belt</color>: remove all items from your belt \n",
                 [MessageKey.OptWear] = "<color=yellow>wear</color>: remove all items from your clothing slots \n\n",
@@ -448,7 +497,7 @@ namespace Oxide.Plugins
             }, this, "en"); ; ;
         }
 
-        private string GetMessage(string messageKey, string? playerId = null, params object[] args)
+        private string GetMessage(string messageKey, string playerId = null, params object[] args)
         {
             try
             {
