@@ -21,7 +21,7 @@ using Network;
 
 namespace Oxide.Plugins
 {
-    [Info("Inventory Cleaner", "Joao Pster", "2.1.0")]
+    [Info("Inventory Cleaner", "Joao Pster", "2.1.1")]
     [Description("Allows players to clear their own or another player's inventory.")]
     public class InventoryCleaner : RustPlugin
     {
@@ -188,6 +188,11 @@ namespace Oxide.Plugins
         private void Init()
         {
             LoadPermissions();
+
+            // Register chat/console command under many different aliases
+            // When running from chat, prefix with a forward slash /
+
+            AddCovalenceCommand(new string[] {"clearinv", "cleaninv", "clear.inv", "clean.inv", "inv.clear", "invclear", "inv.clean", "invclean"}, nameof(ClearCovalenceCommand), MyPermissions.Clear); 
         }
 
         #endregion
@@ -328,80 +333,34 @@ namespace Oxide.Plugins
 
         #endregion
 
-        #region Chat Commands
-
-        [ChatCommand("clearinv")]
-        private void ClearCommand(BasePlayer player, string command, string[] args)
+        #region Chat and/or Console Commands
+        private void ClearCovalenceCommand(IPlayer iplayer, string command, string[] args)
         {
-            // Check Permission
-            var has = HasPermission(player, MyPermissions.Clear);
-            if (!has) return;
-            
-            // Default Case
-            if (args.Length == 0)
+            // This is a client-oriented command, so no need to go further if ran from console
+            if (iplayer.IsServer)
             {
-                ClearAllContainers(player, MessageKey.AllCleaned, SendChatMessage);
                 return;
             }
-            
-            // Check if every is true and get the option
-            var every = ((args.Length > 1) && (args[1].ToLower() == "everyone"));
 
-            var opt = args[0].ToLower();
-            
-            switch (opt)
+            // Get BasePlayer from IPlayer
+            var player = iplayer.Object as BasePlayer;
+
+            if (!HasPermission(player, MyPermissions.Clear))
             {
-                case "main":
-                    ClearAllContainers(player, MessageKey.AllCleaned, SendChatMessage, opt, every);
-                    break;
-                case "inv":
-                    ClearOneContainer(player, player.inventory.containerMain, MessageKey.InvCleaned, SendChatMessage, opt, every);
-                    break;
-                case "belt":
-                    ClearOneContainer(player, player.inventory.containerBelt, MessageKey.InvCleaned, SendChatMessage, opt, every);
-                    break;
-                case "wear":
-                    ClearOneContainer(player, player.inventory.containerWear, MessageKey.InvCleaned, SendChatMessage, opt, every);
-                    break;
-                case "help":
-                    HelpPanel(player, SendChatMessage);
-                    break;
-                case "cmds":
-                    CommandsPanel(player, SendChatMessage);
-                    break;
-                default:
-                    SendChatMessage(player, GenerateMessage(GetMessage(MessageKey.OptNotFound, player.UserIDString, opt)));
-                    break;
+                return;
             }
-        }
 
-        #endregion
-
-        #region Console Commands
-
-        [ConsoleCommand("inv.clear")]
-        private void CmdConsole(ConsoleSystem.Arg arg)
-        {
-            var player = arg.Player();
-
-            // Check Permission
-            var has = HasPermission(player, MyPermissions.Clear);
-            if (!has) return;
-            
-            // Default Case
-            if (arg.Args == null)
+            if (args.Length == 0)
             {
+                // Default Case
                 ClearAllContainers(player, MessageKey.AllCleaned, SendConsoleMessage);
                 return;
             }
-            
-            var args = arg.Args;
 
-            // Check if every is true and get the option
             var every = ((args.Length > 1) && (args[1].ToLower() == "everyone"));
-            
+
             var opt = args[0].ToLower();
-            
+
             switch (opt)
             {
                 case "main":
@@ -426,8 +385,7 @@ namespace Oxide.Plugins
                     SendChatMessage(player, GenerateMessage(GetMessage(MessageKey.OptNotFound, player.UserIDString, opt)));
                     break;
             }
-        }    
-
+        }
         #endregion
 
         #region Localization 
