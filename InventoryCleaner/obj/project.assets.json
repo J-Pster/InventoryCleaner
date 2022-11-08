@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\TheWh\\source\\repos\\InventoryCleaner\\InventoryCleaner\\InventoryCleaner.csproj",
+      "projectUniqueName": "C:\\Users\\TheWh\\Documents\\GitHub\\InventoryCleaner\\InventoryCleaner\\InventoryCleaner.csproj",
       "projectName": "InventoryCleaner",
-      "projectPath": "C:\\Users\\TheWh\\source\\repos\\InventoryCleaner\\InventoryCleaner\\InventoryCleaner.csproj",
+      "projectPath": "C:\\Users\\TheWh\\Documents\\GitHub\\InventoryCleaner\\InventoryCleaner\\InventoryCleaner.csproj",
       "packagesPath": "C:\\Users\\TheWh\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\TheWh\\source\\repos\\InventoryCleaner\\InventoryCleaner\\obj\\",
+      "outputPath": "C:\\Users\\TheWh\\Documents\\GitHub\\InventoryCleaner\\InventoryCleaner\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\TheWh\\AppData\\Roaming\\NuGet\\NuGet.Config",

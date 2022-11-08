@@ -21,7 +21,7 @@ using Network;
 
 namespace Oxide.Plugins
 {
-    [Info("Inventory Cleaner", "Joao Pster", "2.1.0")]
+    [Info("Inventory Cleaner", "Joao Pster", "2.1.1")]
     [Description("Allows players to clear their own or another player's inventory.")]
     public class InventoryCleaner : RustPlugin
     {
@@ -128,18 +128,23 @@ namespace Oxide.Plugins
             Player.Message(player, message, _config.MessageImage);
         }
 
+        private void ReplyPlayer(IPlayer player, string message)
+        {
+            player.Reply(message);
+        }
+
         private void SendMessageToAll(string message)
         {
             Server.Broadcast(message, _config.MessageImage);
         }
         
-        private bool[] hasAllPermissions(BasePlayer player)
+        private bool[] hasAllPermissions(IPlayer iplayer)
         {
             List<bool> bools = new List<bool>();
 
             foreach (var perm in _permissions)
             {
-                bools.Add(player.IPlayer.HasPermission(perm));
+                bools.Add(iplayer.HasPermission(perm));
             }
 
             return bools.ToArray();
@@ -188,6 +193,11 @@ namespace Oxide.Plugins
         private void Init()
         {
             LoadPermissions();
+
+            // Register chat/console command under many different aliases
+            // When running from chat, prefix with a forward slash /
+
+            AddCovalenceCommand(new string[] {"clearinv", "cleaninv", "clear.inv", "clean.inv", "inv.clear", "invclear", "inv.clean", "invclean"}, nameof(ClearCovalenceCommand), MyPermissions.Clear); 
         }
 
         #endregion
@@ -217,47 +227,47 @@ namespace Oxide.Plugins
         
         #region Panel Functions
         
-        private void CommandsPanel(BasePlayer player, Action<BasePlayer, string> messager, params string[] args)
+        private void CommandsPanel(IPlayer iplayer, params string[] args)
         {
             var sb = new StringBuilder();
-            sb.Append(GetMessage(MessageKey.Header, player.UserIDString, Author, Version));
-            sb.Append(GetMessage(MessageKey.Gone, player.UserIDString));
-            sb.Append(GetMessage(MessageKey.Opts, player.UserIDString));
-            sb.Append(GetMessage(MessageKey.OptAll, player.UserIDString));
-            sb.Append(GetMessage(MessageKey.OptInv, player.UserIDString));
-            sb.Append(GetMessage(MessageKey.OptBelt, player.UserIDString));
-            sb.Append(GetMessage(MessageKey.OptWear, player.UserIDString));
-            sb.Append(GetMessage(MessageKey.OptEvery, player.UserIDString));
+            sb.Append(GetMessage(MessageKey.Header, iplayer.Id, Author, Version));
+            sb.Append(GetMessage(MessageKey.Gone, iplayer.Id));
+            sb.Append(GetMessage(MessageKey.Opts, iplayer.Id));
+            sb.Append(GetMessage(MessageKey.OptAll, iplayer.Id));
+            sb.Append(GetMessage(MessageKey.OptInv, iplayer.Id));
+            sb.Append(GetMessage(MessageKey.OptBelt, iplayer.Id));
+            sb.Append(GetMessage(MessageKey.OptWear, iplayer.Id));
+            sb.Append(GetMessage(MessageKey.OptEvery, iplayer.Id));
 
-            messager(player, sb.ToString());
+            ReplyPlayer(iplayer, sb.ToString());
         }
 
-        private void HelpPanel(BasePlayer player, Action<BasePlayer, string> messager)
+        private void HelpPanel(IPlayer iplayer)
         {
-            var mCp = hasAllPermissions(player);
+            var mCp = hasAllPermissions(iplayer);
 
             var sb = new StringBuilder();
-            sb.Append(GetMessage(MessageKey.Header, player.UserIDString, Author, Version));
-            sb.Append(GetMessage(MessageKey.Gone, player.UserIDString));
-            sb.Append(GetMessage(MessageKey.Perms, player.UserIDString, player.displayName));
-            sb.Append(GetMessage(MessageKey.PermUse, player.UserIDString, mCp[0]));
-            sb.Append(GetMessage(MessageKey.PermEvery, player.UserIDString, mCp[1]));
-            sb.Append(GetMessage(MessageKey.PermDeath, player.UserIDString, mCp[2]));
-            sb.Append(GetMessage(MessageKey.PermLogout, player.UserIDString, mCp[3]));
-            sb.Append(GetMessage(MessageKey.InvComands, player.UserIDString));
+            sb.Append(GetMessage(MessageKey.Header, iplayer.Id, Author, Version));
+            sb.Append(GetMessage(MessageKey.Gone, iplayer.Id));
+            sb.Append(GetMessage(MessageKey.Perms, iplayer.Id, iplayer.Name));
+            sb.Append(GetMessage(MessageKey.PermUse, iplayer.Id, mCp[0]));
+            sb.Append(GetMessage(MessageKey.PermEvery, iplayer.Id, mCp[1]));
+            sb.Append(GetMessage(MessageKey.PermDeath, iplayer.Id, mCp[2]));
+            sb.Append(GetMessage(MessageKey.PermLogout, iplayer.Id, mCp[3]));
+            sb.Append(GetMessage(MessageKey.InvComands, iplayer.Id));
 
-            messager(player, sb.ToString());
+            ReplyPlayer(iplayer, sb.ToString());
         }
         
         #endregion
 
         #region Clear Functions
         
-        private void DeleteFromEveryone(BasePlayer player, string opt)
+        private void DeleteFromEveryone(IPlayer iplayer, string opt)
         {
-            PrintWarning($"{player.displayName} is trying to run Delete Everyone!");
-            if (!HasPermission(player, MyPermissions.ClearOthers)) return;
-            PrintWarning($"{player.displayName}: Running Delete Everyone Started!");
+            PrintWarning($"{iplayer.Name} is trying to run Delete Everyone!");
+            if (!iplayer.HasPermission(MyPermissions.ClearOthers)) return;
+            PrintWarning($"{iplayer.Name}: Running Delete Everyone Started!");
 
             List<BasePlayer> players = BasePlayer.allPlayerList.ToList();
 
@@ -268,36 +278,36 @@ namespace Oxide.Plugins
                 {
                     case "main":
                         inv.Strip();
-                        SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryAllCleaned, player.UserIDString), "red", 18));
+                        SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryAllCleaned, iplayer.Id), "red", 18));
                         break;
                     case "inv":
                         inv.containerMain.Clear();
-                        SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryInvCleaned, player.UserIDString), "red", 18));
+                        SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryInvCleaned, iplayer.Id), "red", 18));
                         break;
                     case "belt":
                         inv.containerBelt.Clear();
-                        SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryBeltCleaned, player.UserIDString), "red", 18));
+                        SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryBeltCleaned, iplayer.Id), "red", 18));
                         break;
                     case "wear":
                         inv.containerWear.Clear();
-                        SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryWearCleaned, player.UserIDString), "red", 18));
+                        SendMessageToAll(GenerateMessage(GetMessage(MessageKey.EveryWearCleaned, iplayer.Id), "red", 18));
                         break;
                     default:
-                        var msg = GenerateMessage(GetMessage(MessageKey.OptNotFound, player.UserIDString), "red", 14);
-                        SendChatMessage(player, msg);
+                        var msg = GenerateMessage(GetMessage(MessageKey.OptNotFound, iplayer.Id), "red", 14);
+                        ReplyPlayer(iplayer, msg);
                         break;
                 }
             }
 
-            PrintWarning($"{player.displayName}: Running Delete Everyone Finished!");
+            PrintWarning($"{iplayer.Name}: Running Delete Everyone Finished!");
         }
 
-        private void ClearOneContainer(BasePlayer player, ItemContainer container, string msgKey, Action<BasePlayer, string> messager, string option = "main", bool every = false)
+        private void ClearOneContainer(IPlayer iplayer, ItemContainer container, string msgKey, string option = "main", bool every = false)
         {
             // Everyone
             if (every)
             {
-                DeleteFromEveryone(player, option);
+                DeleteFromEveryone(iplayer, option);
                 return;
             }
             
@@ -305,129 +315,83 @@ namespace Oxide.Plugins
             container.Clear();
             ItemManager.DoRemoves();
             
-            var msg = GenerateMessage(GetMessage(msgKey, player.UserIDString, player.displayName), "green", 14);
-            messager(player, msg);
+            var msg = GenerateMessage(GetMessage(msgKey, iplayer.Id, iplayer.Name), "green", 14);
+            ReplyPlayer(iplayer, msg);
         }
 
-        private void ClearAllContainers(BasePlayer player, string msgKey, Action<BasePlayer, string> messager, string option = "main", bool every = false)
+        private void ClearAllContainers(IPlayer iplayer, string msgKey, string option = "main", bool every = false)
         {
             // Everyone
             if (every)
             {
-                DeleteFromEveryone(player, option);
+                DeleteFromEveryone(iplayer, option);
                 return;
             }
 
             // Singular
+            var player = iplayer.Object as BasePlayer;
             player.inventory.Strip();
             ItemManager.DoRemoves();
 
-            var msg = GenerateMessage(GetMessage(msgKey, player.UserIDString, player.displayName), "green", 14);
-            messager(player, msg);
+            var msg = GenerateMessage(GetMessage(msgKey, iplayer.Id, iplayer.Name), "green", 14);
+            ReplyPlayer(iplayer, msg);
         }
 
         #endregion
 
-        #region Chat Commands
-
-        [ChatCommand("clearinv")]
-        private void ClearCommand(BasePlayer player, string command, string[] args)
+        #region Chat and/or Console Commands
+        private void ClearCovalenceCommand(IPlayer iplayer, string command, string[] args)
         {
-            // Check Permission
-            var has = HasPermission(player, MyPermissions.Clear);
-            if (!has) return;
-            
-            // Default Case
+            // This is a client-oriented command, so no need to go further if ran from console
+            if (iplayer.IsServer)
+            {
+                return;
+            }
+
+            // Get BasePlayer from IPlayer
+            var player = iplayer.Object as BasePlayer;
+
+            if (!iplayer.HasPermission(MyPermissions.Clear))
+            {
+                return;
+            }
+
             if (args.Length == 0)
             {
-                ClearAllContainers(player, MessageKey.AllCleaned, SendChatMessage);
+                // Default Case
+                ClearAllContainers(iplayer, MessageKey.AllCleaned);
                 return;
             }
-            
-            // Check if every is true and get the option
+
             var every = ((args.Length > 1) && (args[1].ToLower() == "everyone"));
 
             var opt = args[0].ToLower();
-            
+
             switch (opt)
             {
                 case "main":
-                    ClearAllContainers(player, MessageKey.AllCleaned, SendChatMessage, opt, every);
+                    ClearAllContainers(iplayer, MessageKey.AllCleaned, opt, every);
                     break;
                 case "inv":
-                    ClearOneContainer(player, player.inventory.containerMain, MessageKey.InvCleaned, SendChatMessage, opt, every);
+                    ClearOneContainer(iplayer, player.inventory.containerMain, MessageKey.InvCleaned, opt, every);
                     break;
                 case "belt":
-                    ClearOneContainer(player, player.inventory.containerBelt, MessageKey.InvCleaned, SendChatMessage, opt, every);
+                    ClearOneContainer(iplayer, player.inventory.containerBelt, MessageKey.InvCleaned, opt, every);
                     break;
                 case "wear":
-                    ClearOneContainer(player, player.inventory.containerWear, MessageKey.InvCleaned, SendChatMessage, opt, every);
+                    ClearOneContainer(iplayer, player.inventory.containerWear, MessageKey.InvCleaned, opt, every);
                     break;
                 case "help":
-                    HelpPanel(player, SendChatMessage);
+                    HelpPanel(iplayer);
                     break;
                 case "cmds":
-                    CommandsPanel(player, SendChatMessage);
+                    CommandsPanel(iplayer);
                     break;
                 default:
-                    SendChatMessage(player, GenerateMessage(GetMessage(MessageKey.OptNotFound, player.UserIDString, opt)));
+                    ReplyPlayer(iplayer, GenerateMessage(GetMessage(MessageKey.OptNotFound, iplayer.Id, opt)));
                     break;
             }
         }
-
-        #endregion
-
-        #region Console Commands
-
-        [ConsoleCommand("inv.clear")]
-        private void CmdConsole(ConsoleSystem.Arg arg)
-        {
-            var player = arg.Player();
-
-            // Check Permission
-            var has = HasPermission(player, MyPermissions.Clear);
-            if (!has) return;
-            
-            // Default Case
-            if (arg.Args == null)
-            {
-                ClearAllContainers(player, MessageKey.AllCleaned, SendConsoleMessage);
-                return;
-            }
-            
-            var args = arg.Args;
-
-            // Check if every is true and get the option
-            var every = ((args.Length > 1) && (args[1].ToLower() == "everyone"));
-            
-            var opt = args[0].ToLower();
-            
-            switch (opt)
-            {
-                case "main":
-                    ClearAllContainers(player, MessageKey.AllCleaned, SendConsoleMessage, opt, every);
-                    break;
-                case "inv":
-                    ClearOneContainer(player, player.inventory.containerMain, MessageKey.InvCleaned, SendConsoleMessage, opt, every);
-                    break;
-                case "belt":
-                    ClearOneContainer(player, player.inventory.containerBelt, MessageKey.InvCleaned, SendConsoleMessage, opt, every);
-                    break;
-                case "wear":
-                    ClearOneContainer(player, player.inventory.containerWear, MessageKey.InvCleaned, SendConsoleMessage, opt, every);
-                    break;
-                case "help":
-                    HelpPanel(player, SendConsoleMessage);
-                    break;
-                case "cmds":
-                    CommandsPanel(player, SendConsoleMessage);
-                    break;
-                default:
-                    SendChatMessage(player, GenerateMessage(GetMessage(MessageKey.OptNotFound, player.UserIDString, opt)));
-                    break;
-            }
-        }    
-
         #endregion
 
         #region Localization 
